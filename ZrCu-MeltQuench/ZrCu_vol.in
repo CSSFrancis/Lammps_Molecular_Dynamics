@@ -12,23 +12,20 @@ atom_style      atomic                # Pair potentials.
 #  Define simulation box.
 #------------------------------------------------------------------
 
-lattice bcc 3.2				#bcc lattice with lattice parameter of 3.2A
-region my_box block 0 17 0 17 0 17	#larger geometric reagion "block" with 17
-create_box      2 my_box		# n-atoms reagion-ID
+lattice bcc 3.1				#bcc lattice with lattice parameter of 3.2A
+region my_box block 0 17 0 17 0 17	#larger geometric region "block" with 17
+create_box      2 my_box		# n-atoms region-ID
 create_atoms 1 box			#
 
-set group all type 2 			#setting all the atoms to type 2
-set group all type/fraction 1 0.36 341341 #setting some percent (36%) of the atoms the atoms to type 1
+set group all type 2 
+set group all type/fraction 1 0.36 341341 #setting the group "half" the atoms to type 1
 
 #------------------------------------------------------------------
 #  Define interatomic potential.
 #------------------------------------------------------------------
 pair_style     eam/alloy		# Eam/alloy potential
-pair_coeff      * * ZrCu.lammps.eam Zr Cu  #potenital and setting atom 1,2
+pair_coeff      * * ZrCu.lammps.eam Zr Cu  #potential and setting atom 1,2
 
-#------------------------------------------------------------------
-#  How to write thermodynamic information.
-#------------------------------------------------------------------
 thermo 1000				#print thermo info every 1000 steps
 thermo_style    custom step temp press etotal pe enthalpy	#what thermo info to print
 thermo_modify   flush yes		#flush storage after output
@@ -42,6 +39,13 @@ dump            dump_name all custom 10000 traj.lammpstrj id type x y z #dump th
 dump_modify     dump_name sort id 
 
 #------------------------------------------------------------------
+#  How to write thermodynamic information.
+#------------------------------------------------------------------
+#thermo 10000				#redefine thermodynamic output (no reason to)
+#thermo_style    custom step temp press etotal pe enthalpy	#redefining
+#thermo_modify   flush yes 		#redefining
+
+#------------------------------------------------------------------
 #  Define statistical ensemble.
 #------------------------------------------------------------------
 fix	1 all nve #fix (id number1) not the same as group or atom 1  
@@ -49,34 +53,48 @@ fix	1 all nve #fix (id number1) not the same as group or atom 1
 #  Initial velocities and timestep (ps).
 #------------------------------------------------------------------
 timestep 0.001		#intialize the timestep as one picosecond
-velocity        all create 400 4928459 mom yes rot yes dist gaussian	#define the veolovity at a temperature of 400
+velocity        all create 400 4928459 mom yes rot yes dist gaussian	#define the veolocity at a temperature of 400
+
+#------------------------------------------------------------------
+#NVE ensemble, used to relax the system but keep the energy constant
+#Should keep etot content, Temp will rise or fall
+#------------------------------------------------------------------
 run 20000		#run for 20000 time steps to determine volume at 400K
 unfix 1			#unfix nve ensemble (fix 1) 
 
-# relax the systme at 400K in order to find the density at 400K
+#------------------------------------------------------------------
+#NPT ensemble to expand the system at 400K. Now proper density is found
+#------------------------------------------------------------------
 fix             md all npt temp 400 400 0.1 iso 0 0 1	#fix the sysyem using a npt system with T of 400
 run 50000		#run 50000 stems
 unfix md		#unfix npt system md
 
-#raise the temperature of the system to 2000K
+#------------------------------------------------------------------
+#NPT ensemble to heat sample. 
+#------------------------------------------------------------------
 fix             md all npt temp 400 2000 0.1 iso 0 0 1	#reset the md fix to go to 2000K
 run 200000
 unfix md
 
-#eqaulize the simulation at 2000 degrees
+#------------------------------------------------------------------
+#NPT ensemble to equalibritate
+#------------------------------------------------------------------
 fix             md all npt temp 2000 2000 0.1 iso 0 0 1
 run 500000
 unfix md
 
-#variable imax equal 38		#creating a varible imax with a value 38
+#------------------------------------------------------------------
+#Setting Loop variables
+#------------------------------------------------------------------
+#variable imax equal 38		#creating a variable imax with a value 38
+#variable i loop ${imax}		# making a variable i which loops
 
-#variable i loop ${imax}		# making a varible i which loops
 #-----------------------------------------------------------------
 #Start loop...
 #-----------------------------------------------------------------
 #label start_of_loop_1		#making a point to jump to later... it's a weird ass loop thing
 
-#variable tin equal 2000-${i}*50		#setting tin to inital temp (2000K,1950K,1900K...)
+#variable tin equal 2000-${i}*50		#setting tin to initial temp (2000K,1950K,1900K...)
 #variable tfi equal 1950-${i}*50		#setting tfi to final temp  (1950K,1900K,1850K...)
 
 #quenching step for 50K
@@ -84,7 +102,7 @@ unfix md
 #run 500000
 #unfix           nnn
 
-#equalizing after the quenching at tfi for 500000 timesteps
+#equalizing after the quenching at tfi for 500000 time steps
 #fix             md all npt temp ${tfi} ${tfi} 0.1 iso 0 0 1
 #run 500000
 #unfix md
